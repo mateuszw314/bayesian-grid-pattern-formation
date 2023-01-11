@@ -1,3 +1,11 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+import tensorflow as tf
+visgpu = tf.config.get_visible_devices()
+print(len(visgpu))
+if len(visgpu) > 2:
+    exit()
+
 import numpy as np
 import tensorflow as tf
 #tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
