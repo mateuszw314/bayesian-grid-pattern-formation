@@ -1,27 +1,28 @@
 import numpy as np
 import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+#tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from utils import generate_run_ID
 from place_cells import PlaceCells
 from trajectory_generator import TrajectoryGenerator
-from model import RNN, LSTM
+from model import BayesianRNN#, RNN, LSTM
 from trainer import Trainer
+#tf.compat.v1.disable_eager_execution()
 
 
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_dir',
-					default='/mnt/fs2/bsorsch/grid_cells/models/',
+					default='models/',
 					help='directory to save trained models')
 parser.add_argument('--n_epochs',
-					default=100,
+					default=10,#100,
 					help='number of training epochs')
 parser.add_argument('--n_steps',
 					default=1000,
 					help='batches per epoch')
 parser.add_argument('--batch_size',
-					default=200,
+					default=200, #may be inefficient
 					help='number of trajectories per batch')
 parser.add_argument('--sequence_length',
 					default=20,
@@ -33,7 +34,7 @@ parser.add_argument('--Np',
 					default=512,
 					help='number of place cells')
 parser.add_argument('--Ng',
-					default=4096,
+					default=1024,#4096,
 					help='number of grid cells')
 parser.add_argument('--place_cell_rf',
 					default=0.12,
@@ -65,15 +66,18 @@ parser.add_argument('--box_height',
 
 options = parser.parse_args()
 options.run_ID = generate_run_ID(options)
-
+#tf.compat.v1.enable_eager_execution()
 
 place_cells = PlaceCells(options)
-if options.RNN_type == 'RNN':
-	model = RNN(options, place_cells)
-elif options.RNN_type == 'LSTM':
-	model = LSTM(options, place_cells)
+
+model = BayesianRNN(options, place_cells)
+
 trajectory_generator = TrajectoryGenerator(options, place_cells)
-trainer = Trainer(options, model, trajectory_generator)
+#trainer = Trainer(options, model, trajectory_generator)
 
 # Train
-trainer.train(n_epochs=options.n_epochs, n_steps=options.n_steps)
+#trainer.train(n_epochs=options.n_epochs, n_steps=options.n_steps)
+
+#tmp = trajectory_generator[0]
+#model(trajectory_generator[0][0])
+history = model.fit(trajectory_generator, epochs=options.n_epochs)

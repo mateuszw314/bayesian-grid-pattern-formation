@@ -1,5 +1,5 @@
 import numpy as np
-
+import scipy
 
 def generate_run_ID(options):
     ''' 
@@ -87,39 +87,39 @@ def skaggs_power_2(Jsort):
     return sk_power
 
 
-def calc_err():
-    inputs, _, pos = next(gen)
-    pred = model(inputs)
-    pred_pos = place_cells.get_nearest_cell_pos(pred)
-    return tf.reduce_mean(tf.sqrt(tf.reduce_sum((pos - pred_pos)**2, axis=-1)))
-
-from visualize import compute_ratemaps, plot_ratemaps
-
-
-def compute_variance(res, n_avg):
-    
-    activations, rate_map, g, pos = compute_ratemaps(model, data_manager, options, res=res, n_avg=n_avg)
-
-    counts = np.zeros([res,res])
-    variance = np.zeros([res,res])
-
-    x_all = (pos[:,0] + options['box_width']/2) / options['box_width'] * res
-    y_all = (pos[:,1] + options['box_height']/2) / options['box_height'] * res
-    for i in tqdm(range(len(g))):
-        x = int(x_all[i])
-        y = int(y_all[i])
-        if x >=0 and x < res and y >=0 and y < res:
-            counts[x, y] += 1
-            variance[x, y] += np.linalg.norm(g[i] - activations[:, x, y]) / np.linalg.norm(g[i]) / np.linalg.norm(activations[:,x,y])
-
-    for x in range(res):
-        for y in range(res):
-            if counts[x, y] > 0:
-                variance[x, y] /= counts[x, y]
-                
-    return variance
-
-
+#def calc_err():
+#    inputs, _, pos = next(gen)
+#    pred = model(inputs)
+#    pred_pos = place_cells.get_nearest_cell_pos(pred)
+#    return tf.reduce_mean(tf.sqrt(tf.reduce_sum((pos - pred_pos)**2, axis=-1)))
+#
+#from visualize import compute_ratemaps, plot_ratemaps
+#
+#
+#def compute_variance(res, n_avg):
+#
+#    activations, rate_map, g, pos = compute_ratemaps(model, data_manager, options, res=res, n_avg=n_avg)
+#
+#    counts = np.zeros([res,res])
+#    variance = np.zeros([res,res])
+#
+#    x_all = (pos[:,0] + options['box_width']/2) / options['box_width'] * res
+#    y_all = (pos[:,1] + options['box_height']/2) / options['box_height'] * res
+#    for i in tqdm(range(len(g))):
+#        x = int(x_all[i])
+#        y = int(y_all[i])
+#        if x >=0 and x < res and y >=0 and y < res:
+#            counts[x, y] += 1
+#            variance[x, y] += np.linalg.norm(g[i] - activations[:, x, y]) / np.linalg.norm(g[i]) / np.linalg.norm(activations[:,x,y])
+#
+#    for x in range(res):
+#        for y in range(res):
+#            if counts[x, y] > 0:
+#                variance[x, y] /= counts[x, y]
+#
+#    return variance
+#
+#
 def load_trained_weights(model, trainer, weight_dir):
     ''' Load weights stored as a .npy file (for github)'''
 

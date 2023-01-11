@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import torch
+import tensorflow.compat.v2 as tf
 import os
 import numpy as np
+from tensorflow.python.data.util.structure import to_batched_tensor_list
 
 
-
-class TrajectoryGenerator(object):
+class TrajectoryGenerator(tf.keras.utils.Sequence):
     def __init__(self, options, place_cells):
         self.options = options
         self.place_cells = place_cells
@@ -13,7 +13,7 @@ class TrajectoryGenerator(object):
 
     def avoid_wall(self, position, hd, box_width, box_height):
         '''
-        Compute distance and angle to nearest wall
+        Compute distance and angle to the nearest wall
         '''
         x = position[:,0]
         y = position[:,1]
@@ -99,7 +99,39 @@ class TrajectoryGenerator(object):
 
         return traj
 
-    
+    def __getitem__(self, idx):
+        batch_size = self.options.batch_size
+        box_width = self.options.box_width
+        box_height = self.options.box_height
+
+        traj = self.generate_trajectory(box_width, box_height, batch_size)
+
+        v = np.stack([traj['ego_v'] * np.cos(traj['target_hd']),
+                      traj['ego_v'] * np.sin(traj['target_hd'])], axis=-1)
+        v = tf.convert_to_tensor(v, dtype=tf.float32)
+        # v = tf.transpose(v, [1, 0, 2])
+
+        pos = np.stack([traj['target_x'], traj['target_y']], axis=-1)
+        pos = tf.convert_to_tensor(pos, dtype=tf.float32)
+        pos = tf.transpose(pos, [1, 0, 2])
+        place_outputs = self.place_cells.get_activation(pos)
+
+        init_pos = np.stack([traj['init_x'], traj['init_y']], axis=-1)
+        init_pos = tf.convert_to_tensor(init_pos, dtype=tf.float32)
+        init_actv = tf.squeeze(self.place_cells.get_activation(init_pos))
+
+        inputs = (tf.unstack(v), tf.unstack(init_actv))
+        inputs = list(tf.data.Dataset.from_tensor_slices((inputs)).as_numpy_iterator())
+        pos = tf.transpose(pos, [1, 0, 2])
+        place_outputs = tf.transpose(place_outputs, [1, 0, 2])
+
+        outputs = list(tf.data.Dataset.from_tensor_slices((place_outputs, pos)).as_numpy_iterator())
+
+        batch = (v, init_actv), (place_outputs, pos)
+        return batch
+    def __len__(self):
+        return self.options.n_steps
+
     def get_generator(self, batch_size=None, box_width=None, box_height=None):
         '''
         Returns a generator that yields batches of trajectories
@@ -116,20 +148,24 @@ class TrajectoryGenerator(object):
             
             v = np.stack([traj['ego_v']*np.cos(traj['target_hd']), 
                   traj['ego_v']*np.sin(traj['target_hd'])],axis=-1)
-            v = torch.tensor(v,dtype=torch.float32).transpose(0,1)
+            v = tf.convert_to_tensor(v,dtype=tf.float32)
+            #v = tf.transpose(v, [1, 0, 2])
 
             pos = np.stack([traj['target_x'], traj['target_y']],axis=-1)
-            pos = torch.tensor(pos,dtype=torch.float32).transpose(0,1).cuda()
+            pos = tf.convert_to_tensor(pos,dtype=tf.float32)
+            pos = tf.transpose(pos, [1, 0, 2])
             place_outputs = self.place_cells.get_activation(pos)
 
             init_pos = np.stack([traj['init_x'], traj['init_y']],axis=-1)
-            init_pos = torch.tensor(init_pos,dtype=torch.float32).cuda()
-            init_actv = self.place_cells.get_activation(init_pos).squeeze()
+            init_pos = tf.convert_to_tensor(init_pos,dtype=tf.float32)
+            init_actv = tf.squeeze(self.place_cells.get_activation(init_pos))
 
-            inputs = (v.cuda(), init_actv)
+            inputs = (v, init_actv)
         
-            yield (inputs, place_outputs, pos)
-
+            #yield (inputs, place_outputs, pos)
+            pos = tf.transpose(pos, [1, 0, 2])
+            place_outputs = tf.transpose(place_outputs, [1, 0, 2])
+            yield tf.data.Dataset.from_tensor_slices((inputs, place_outputs, pos))
 
 
     def get_test_batch(self, batch_size=None, box_width=None, box_height=None):
@@ -145,16 +181,16 @@ class TrajectoryGenerator(object):
         
         v = np.stack([traj['ego_v']*np.cos(traj['target_hd']), 
               traj['ego_v']*np.sin(traj['target_hd'])],axis=-1)
-        v = torch.tensor(v,dtype=torch.float32).transpose(0,1)
+        v = tf.convert_to_tensor(v,dtype=tf.float32).transpose(0,1)
 
         pos = np.stack([traj['target_x'], traj['target_y']],axis=-1)
-        pos = torch.tensor(pos,dtype=torch.float32).transpose(0,1).cuda()
+        pos = tf.convert_to_tensor(pos,dtype=tf.float32).transpose(0,1)
         place_outputs = self.place_cells.get_activation(pos)
 
         init_pos = np.stack([traj['init_x'], traj['init_y']],axis=-1)
-        init_pos = torch.tensor(init_pos,dtype=torch.float32).cuda()
+        init_pos = tf.convert_to_tensor(init_pos,dtype=tf.float32)
         init_actv = self.place_cells.get_activation(init_pos).squeeze()
 
-        inputs = (v.cuda(), init_actv)
+        inputs = (v, init_actv)
         
         return (inputs, pos, place_outputs)

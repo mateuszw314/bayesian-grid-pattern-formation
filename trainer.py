@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import torch
+import tensorflow.compat.v2 as tf
 import numpy as np
 
 from visualize import save_ratemaps
@@ -12,7 +12,6 @@ class Trainer(object):
         self.model = model
         self.trajectory_generator = trajectory_generator
         lr = self.options.learning_rate
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         self.loss = []
         self.err = []
@@ -21,37 +20,13 @@ class Trainer(object):
         self.ckpt_dir = os.path.join(options.save_dir, options.run_ID)
         if restore and os.path.isdir(self.ckpt_dir):
             ckpt = os.path.join(self.ckpt_dir, 'most_recent_model.pth')
-            self.model.load_state_dict(torch.load(ckpt))
+            self.model.load_state_dict(tf.load(ckpt))
             print("Restored trained model from {}".format(ckpt))
         else:
             if not os.path.isdir(self.ckpt_dir):
                 os.mkdir(self.ckpt_dir)
             print("Initializing new model from scratch.")
             print("Saving to: {}".format(self.ckpt_dir))
-
-
-    def train_step(self, inputs, pc_outputs, pos):
-        ''' 
-        Train on one batch of trajectories.
-
-        Args:
-            inputs: Batch of 2d velocity inputs with shape [batch_size, sequence_length, 2].
-            pc_outputs: Ground truth place cell activations with shape 
-                [batch_size, sequence_length, Np].
-            pos: Ground truth 2d position with shape [batch_size, sequence_length, 2].
-
-        Returns:
-            loss: Avg. loss for this training batch.
-            err: Avg. decoded position error in cm.
-        '''
-        self.model.zero_grad()
-
-        loss, err = self.model.compute_loss(inputs, pc_outputs, pos)
-        
-        loss.backward()
-        self.optimizer.step()
-        
-        return loss.item(), err.item()
 
 
     def train(self, n_steps=10, save=True):

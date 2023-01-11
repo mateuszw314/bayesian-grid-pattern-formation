@@ -4,8 +4,8 @@ from matplotlib import pyplot as plt
 
 import scipy
 import scipy.stats
-from imageio import imsave
-import cv2
+#from imageio import imsave
+#import cv2
 
 
 def concat_images(images, image_width, spacer_size):
